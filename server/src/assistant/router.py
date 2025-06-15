@@ -1,7 +1,9 @@
 from fastapi import APIRouter
 
+from src.core.metadata import ApiTags
+
 router = APIRouter(
-    tags=["speech-assistant"],
+    tags=[ApiTags.assistant],
     prefix="/assistant"
 )
 

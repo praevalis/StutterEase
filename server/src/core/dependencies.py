@@ -1,4 +1,5 @@
-from sqlalchemy.orm import Session, sessionmaker
+from typing import Generator
+from sqlalchemy.orm import Session
 
 from src.core.database import SessionLocal
 from src.core.config import Settings, settings
@@ -9,16 +10,19 @@ def get_settings() -> Settings:
 
     Returns:
         Settings: Object of the class inherited from pydantic BaseSettings.
-
     """
     return settings
 
-def get_db_session() -> sessionmaker[Session]:
+def get_db_session() -> Generator[Session, None, None]:
     """
     Dependency injector for database session.
 
-    Returns:
-        sessionmaker[Session]: Session object created using sessionmaker.
-        
+    Yields:
+        Session: SQLAlchemy database session. 
     """
-    return SessionLocal
+    db = SessionLocal()
+
+    try:
+        yield db
+    finally:
+        db.close()

@@ -1,7 +1,9 @@
 from fastapi import APIRouter
 
+from src.core.metadata import ApiTags
+
 router = APIRouter(
-    tags=["conversation-coach"],
+    tags=[ApiTags.coach],
     prefix="/coach"
 )
 

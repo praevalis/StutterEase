@@ -12,11 +12,10 @@ def add(app: FastAPI) -> None:
 
     Returns:
         None
-
     """
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[settings.ALLOWED_ORIGINS],
+        allow_origins=settings.ALLOWED_ORIGINS,
         allow_methods=["*"],
         allow_headers=["*"],
         allow_credentials=True

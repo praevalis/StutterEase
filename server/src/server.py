@@ -6,9 +6,14 @@ from src.auth.router import router as auth_router
 from src.user.router import router as user_router
 from src.coach.router import router as coach_router
 from src.assistant.router import router as assistant_router
+from src.core.metadata import title, api_description, version, tags
 
 api = FastAPI(
-    lifespan=lifespan
+    lifespan=lifespan,
+    title=title,
+    description=api_description,
+    version=version,
+    openapi_tags=tags
 )
 
 cors_middleware.add(api)
