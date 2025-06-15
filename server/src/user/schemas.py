@@ -46,3 +46,11 @@ class UserUpdateDto(BaseModel):
     model_config = ConfigDict(
         str_strip_whitespace=True
     )
+
+class UserUpdateResponse(BaseModel):
+    message: str
+    data: UserDto
+
+class UserDeleteResponse(BaseModel):
+    message: str
+    data: None

@@ -1,7 +1,7 @@
+from typing import Any
 from jwt import PyJWTError
 from sqlalchemy import select
 from datetime import timedelta
-from typing import Any, Literal
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from fastapi.security.oauth2 import OAuth2PasswordBearer
