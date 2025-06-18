@@ -13,7 +13,14 @@ const MAPPING: IconMapping = {
 	'house.fill': 'home',
 	'mic.circle.fill': 'keyboard-voice',
 	'bubble.left.and.bubble.right.fill': 'chat',
-	'person.crop.circle.fill': 'person'
+	'person.crop.circle.fill': 'person',
+	'chevron.right': 'chevron-right',
+	'chevron.down': 'keyboard-arrow-down',
+	'waveform.circle.fill': 'graphic-eq',
+	waveform: 'graphic-eq',
+	xmark: 'close',
+	magnifyingglass: 'search',
+	'plus.circle.fill': 'add-circle'
 } as IconMapping;
 
 const IconSymbol = ({

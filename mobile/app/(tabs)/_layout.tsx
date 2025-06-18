@@ -37,7 +37,7 @@ const TabLayout = () => {
 			<Tabs.Screen
 				name="assistant"
 				options={{
-					title: 'Speech Assistant',
+					title: 'Assistant',
 					tabBarIcon: ({ color }) => (
 						<IconSymbol
 							size={28}
@@ -50,7 +50,7 @@ const TabLayout = () => {
 			<Tabs.Screen
 				name="coach"
 				options={{
-					title: 'Conversation Coach',
+					title: 'Coach',
 					tabBarIcon: ({ color }) => (
 						<IconSymbol
 							size={28}

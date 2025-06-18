@@ -1,6 +1,7 @@
 export const Colors = {
 	light: {
 		background: '#F9FAFB',
+		surface: '#F3F4F6',
 		primaryText: '#1F2937',
 		secondaryText: '#6B7280',
 		primaryAccent: '#38B2AC',
@@ -12,7 +13,7 @@ export const Colors = {
 		border: '#E5E7EB'
 	},
 	dark: {
-		background: '#1F2937',
+		background: '#000000',
 		surface: '#374151',
 		primaryText: '#F3F4F6',
 		secondaryText: '#9CA3AF',
