@@ -6,6 +6,9 @@ import {
 	Dimensions
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useEffect, useRef, useState } from 'react';
+import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system';
 
 import ThemedView from '@/components/ThemedView';
 import ThemedText from '@/components/ThemedText';
@@ -20,10 +23,119 @@ const AssistantScreen = () => {
 	const iconColor = useThemeColor({}, 'primaryAccent');
 	const border = useThemeColor({}, 'border');
 
-	// TO-DO: Add state logic and backend integration.
-	const transcript: string[] = ['I am umm trying to aaa- an appointment.'];
-	const suggestion: string | null = 'schedule';
-	const isRecording = true;
+	const [isRecording, setIsRecording] = useState(false);
+	const [transcript, setTranscript] = useState<string[]>([]);
+	const [suggestion, setSuggestion] = useState<string | null>(null);
+
+	const websocketRef = useRef<WebSocket | null>(null);
+	const recordingRef = useRef<Audio.Recording | null>(null);
+	const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+	const WEBSOCKET_URL = `ws://192.168.0.100:8000/assistant/ws/audio`;
+
+	useEffect(() => {
+		const ws = new WebSocket(WEBSOCKET_URL);
+		websocketRef.current = ws;
+
+		ws.onmessage = (event) => {
+			const suggestionText = event.data;
+			setSuggestion(suggestionText);
+			setTranscript((prev) => [...prev, `...${suggestionText}`]);
+		};
+
+		ws.onerror = (err) =>
+			console.error('WebSocket error:', (err as ErrorEvent).message);
+		ws.onclose = () => console.log('WebSocket closed');
+
+		return () => {
+			ws.close();
+			stopRecording();
+		};
+	}, []);
+
+	const startRecording = async () => {
+		try {
+			const { status } = await Audio.requestPermissionsAsync();
+			if (status !== 'granted') {
+				console.warn('Permission not granted for microphone');
+				return;
+			}
+
+			try {
+				await Audio.setAudioModeAsync({
+					allowsRecordingIOS: true,
+					playsInSilentModeIOS: true
+				});
+				console.log('Audio mode set successfully.');
+			} catch (e) {
+				console.error('Failed to set audio mode:', e);
+			}
+
+			setIsRecording(true);
+
+			const loop = async () => {
+				try {
+					while (isRecording) {
+						const { recording } = await Audio.Recording.createAsync(
+							Audio.RecordingOptionsPresets.HIGH_QUALITY
+						);
+						recordingRef.current = recording;
+						console.log('[Loop] Started short recording.');
+
+						await new Promise((res) => setTimeout(res, 1000));
+
+						await recording.stopAndUnloadAsync();
+						const uri = recording.getURI();
+						if (!uri) {
+							console.warn('Recording URI is null');
+							continue;
+						}
+
+						console.log('[Loop] Recording URI:', uri);
+
+						const audioData = await FileSystem.readAsStringAsync(
+							uri,
+							{
+								encoding: FileSystem.EncodingType.Base64
+							}
+						);
+						const buffer = Uint8Array.from(atob(audioData), (c) =>
+							c.charCodeAt(0)
+						);
+						websocketRef.current?.send(buffer);
+						console.log('[Loop] Sent audio chunk.');
+					}
+				} catch (err) {
+					console.error('[Loop] Error in recording loop:', err);
+				}
+			};
+
+			loop();
+			console.log('Recording started.');
+		} catch (err) {
+			console.error('Recording failed:', err);
+		}
+	};
+
+	const stopRecording = async () => {
+		setIsRecording(false);
+		if (recordingRef.current) {
+			try {
+				await recordingRef.current.stopAndUnloadAsync();
+			} catch (e) {
+				console.warn('Recording already stopped.');
+			}
+			recordingRef.current = null;
+		}
+	};
+
+	const toggleRecording = async () => {
+		if (isRecording) {
+			await stopRecording();
+		} else {
+			await startRecording();
+		}
+	};
 
 	return (
 		<SafeAreaView style={{ flex: 1 }}>
@@ -46,7 +158,10 @@ const AssistantScreen = () => {
 						{ backgroundColor: surface, borderColor: border }
 					]}
 				>
-					<ScrollView contentContainerStyle={styles.scrollContainer}>
+					<ScrollView
+						contentContainerStyle={styles.scrollContainer}
+						showsVerticalScrollIndicator={false}
+					>
 						{transcript.slice(-2).map((line, index) => (
 							<ThemedText
 								key={index}
@@ -76,7 +191,10 @@ const AssistantScreen = () => {
 				)}
 
 				<View style={styles.micWrapper}>
-					<Pressable style={styles.micButton}>
+					<Pressable
+						onPress={toggleRecording}
+						style={styles.micButton}
+					>
 						<IconSymbol
 							name="mic.circle.fill"
 							size={32}
@@ -106,9 +224,6 @@ const styles = StyleSheet.create({
 	header: {
 		marginBottom: 16,
 		alignItems: 'center'
-	},
-	headerText: {
-		textAlign: 'center'
 	},
 	headerSubtitle: {
 		marginTop: 4,

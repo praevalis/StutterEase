@@ -46,12 +46,18 @@ async def audio_suggestion_stream(
             buffer += data
 
             if len(buffer) > 16000 * 2: # approx. 1 second of audio
+                logger.debug("Checking buffer.")
                 audio = io.BytesIO(buffer)
+                logger.debug("Converted to audio bytes.")
                 audio_wav = load_audio_segment(audio)
+                logger.debug("Converted to wav audio.")
                 transcription = get_transcription(audio, whisper_model, beam_size=1)
+                logger.debug(f"Transcription: {transcription}")
 
                 if is_stuttering(audio_wav, transcription, settings.SILENCE_THRESHOLD, settings.MIN_SILENCE_LEN):
+                    logger.debug("Stutter block detected.")
                     suggestion = await get_next_word_suggestion(transcription, groq_model)
+                    logger.debug(f"Suggestion: {suggestion}")
                     payload = ", ".join(suggestion) if isinstance(suggestion, list) else suggestion
                     await websocket.send_text(payload)
 
@@ -59,5 +65,4 @@ async def audio_suggestion_stream(
 
     except WebSocketDisconnect:
         logger.info(f"Websocket connection closed.")
-        await websocket.close()
   

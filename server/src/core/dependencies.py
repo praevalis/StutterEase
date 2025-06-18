@@ -2,7 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from faster_whisper import WhisperModel
 from typing import Generator, Annotated
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, WebSocket, status
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from src.user.models import User
@@ -35,23 +35,23 @@ def get_db_session() -> Generator[Session, None, None]:
     finally:
         db.close()
 
-def get_whisper_model(request: Request) -> WhisperModel:
+def get_whisper_model(ws: WebSocket) -> WhisperModel:
     """
     Dependency injector for whisper model.
 
     Returns:
         WhisperModel: Instantiated model.
     """
-    return request.app.state.whisper_model
+    return ws.app.state.whisper_model
 
-def get_groq_model(request: Request) -> BaseChatModel:
+def get_groq_model(ws: WebSocket) -> BaseChatModel:
     """
     Dependency injector for groq model.
 
     Returns:
         BaseChatModel: Instantiated groq model.
     """
-    return request.app.state.groq_model
+    return ws.app.state.groq_model
 
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],

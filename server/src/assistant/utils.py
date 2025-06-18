@@ -11,4 +11,4 @@ def load_audio_segment(audio_chunk: bytes) -> AudioSegment:
     Returns:
         AudioSegment: Python mutable audio.
     """
-    return AudioSegment.from_file_using_temporary_files(io.BytesIO(audio_chunk), format="wav")
+    return AudioSegment.from_file_using_temporary_files(io.BytesIO(audio_chunk))
