@@ -2,14 +2,18 @@ import io
 from fastapi import (
     APIRouter, 
     WebSocket, 
-    WebSocketDisconnect, 
-    WebSocketException
+    WebSocketDisconnect,
+    Depends
 )
+from typing import Annotated
+from faster_whisper import WhisperModel
+from langchain_core.language_models.chat_models import BaseChatModel
 
 from src.core.logging import logger
 from src.core.config import settings
 from src.core.metadata import ApiTags
 from src.assistant.utils import load_audio_segment
+from src.core.dependencies import get_groq_model, get_whisper_model
 from src.assistant.services import (
     get_transcription, 
     is_stuttering, 
@@ -22,9 +26,13 @@ router = APIRouter(
 )
 
 @router.websocket("/ws/audio")
-async def audio_suggestion_stream(websocket: WebSocket):
+async def audio_suggestion_stream(
+    websocket: WebSocket,
+    whisper_model: Annotated[WhisperModel, Depends(get_whisper_model)],
+    groq_model: Annotated[BaseChatModel, Depends(get_groq_model)]  
+):
     """
-    Websocket point where the client streams audio in chunks and server streams next word suggestions.
+    Websocket endpoint where the client streams audio in chunks and server streams next word suggestions.
 
     Args:
         websocket: Websocket object.
@@ -40,10 +48,10 @@ async def audio_suggestion_stream(websocket: WebSocket):
             if len(buffer) > 16000 * 2: # approx. 1 second of audio
                 audio = io.BytesIO(buffer)
                 audio_wav = load_audio_segment(audio)
-                transcription = get_transcription(audio, beam_size=1)
+                transcription = get_transcription(audio, whisper_model, beam_size=1)
 
                 if is_stuttering(audio_wav, transcription, settings.SILENCE_THRESHOLD, settings.MIN_SILENCE_LEN):
-                    suggestion = await get_next_word_suggestion(transcription)
+                    suggestion = await get_next_word_suggestion(transcription, groq_model)
                     payload = ", ".join(suggestion) if isinstance(suggestion, list) else suggestion
                     await websocket.send_text(payload)
 
@@ -52,8 +60,4 @@ async def audio_suggestion_stream(websocket: WebSocket):
     except WebSocketDisconnect:
         logger.info(f"Websocket connection closed.")
         await websocket.close()
-
-    except WebSocketException as ws_error:
-        logger.error(f"Error while handling websocket connection: {ws_error}")
-        raise RuntimeError(f"WebSocket processing error.") from ws_error
   
