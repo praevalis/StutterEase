@@ -4,14 +4,9 @@ StutterEase is a real-time speech coaching assistant designed to support individ
 
 ## How it Works?
 
--   **Scenario-based Conversations:** Users select from real-world conversational scenarios (e.g., interviews, casual chats, presentations) to simulate real-life speaking conditions.
+-   When an individual stammers, the main issue is that their mind gets clouded and they struggle to find the appropriate next words. StutterEase helps them overcome this through Speech Assistance — a feature that allows users to record real-life conversations (Your audio is used only for real-time assistance and is never stored or retained in any form). The audio is transcribed using Faster Whisper, and when a stutter is detected, the transcription is passed to an LLM to generate next-word suggestions, which are then provided to the user.
 
--   **Live Voice Input:** Users press a button to speak, and their voice is streamed to the backend using WebSockets.
--   **Transcription:** The spoken audio is transcribed in real-time using a highly efficient ASR model, faster-whisper.
--   **LLM-Powered Coaching:** The transcribed input is passed to a Language Model which responds naturally — either by continuing the conversation or by suggesting the next word or phrase to help the user overcome stuttering blocks.
--   **Text-to-Speech Feedback:** The AI response is converted back to audio using the device’s text-to-speech engine, enabling seamless voice-based communication.
-
-StutterEase acts like a patient, intelligent conversational partner, helping users practice speech fluency and build confidence in a safe, responsive environment.
+-   Lack of confidence is another challenge. To help build confidence, StutterEase offers Conversation Coaching — a feature that lets users engage in scenario-based, natural language conversations with AI. Transcription and Text-to-Speech are used to simulate real-life audio interactions, making practice more immersive and realistic.
 
 ## Tech Stack
 
