@@ -21,7 +21,6 @@ const HomeScreen = () => {
 			<ThemedView
 				style={[styles.container, { backgroundColor: background }]}
 			>
-				{/* Hero Section */}
 				<ThemedView
 					colorName="primaryAccent"
 					style={styles.heroSection}
@@ -82,7 +81,6 @@ const HomeScreen = () => {
 					</Pressable>
 				</View>
 
-				{/* Fun Fact Section with complete border */}
 				<View
 					style={[
 						styles.funFactContainer,

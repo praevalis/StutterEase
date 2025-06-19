@@ -1,15 +1,15 @@
-import {
-	View,
-	StyleSheet,
-	FlatList,
-	Pressable,
-	Modal,
-	Text
-} from 'react-native';
+import { View, StyleSheet, FlatList, Pressable, Modal } from 'react-native';
 import { useEffect, useRef, useState } from 'react';
+import { Audio } from 'expo-av';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from 'expo-router';
+import { Buffer } from 'buffer';
 
+global.Buffer = global.Buffer || Buffer;
+
+import type { Message } from '@/types/coach';
+
+import { useChat } from '@/context/ChatContext';
 import ThemedText from '@/components/ThemedText';
 import ThemedView from '@/components/ThemedView';
 import useThemeColor from '@/hooks/useThemeColor';
@@ -23,25 +23,102 @@ const ConversationScreen = () => {
 	const background = useThemeColor({}, 'background');
 	const border = useThemeColor({}, 'border');
 
-	const [messages, setMessages] = useState([
-		{ id: '1', type: 'bot', text: 'Hello! Ready to practice?' },
-		{ id: '2', type: 'user', text: 'Yes, I am!' },
-		{ id: '3', type: 'bot', text: 'Great! Let’s begin with an intro.' }
-	]);
+	const { currentConv, messages, setMessages } = useChat();
 
 	const [modalVisible, setModalVisible] = useState(false);
 	const [micPressed, setMicPressed] = useState(false);
 	const [elapsedTime, setElapsedTime] = useState(0);
 	const intervalRef = useRef<number | null>(null);
+	const wsRef = useRef<WebSocket | null>(null);
+	const recordingRef = useRef<Audio.Recording | null>(null);
+
+	useEffect(() => {
+		if (!currentConv) return;
+
+		const ws = new WebSocket(`ws://192.168.0.100:8000/ws/chat`);
+
+		ws.onopen = () => {
+			console.log('[WS] Connected');
+			if (currentConv?.id) {
+				ws.send(currentConv.id);
+			} else {
+				console.error(
+					'[WS] Cannot send: conversation ID is undefined.'
+				);
+			}
+		};
+
+		ws.onmessage = (event) => {
+			console.log('[WS] Bot:', event.data);
+			const botMessage: Message = {
+				id: Date.now().toString(),
+				source: 'BOT',
+				conversation_id: currentConv?.id ?? '',
+				content: event.data
+			};
+			setMessages((prev) => [...prev, botMessage]);
+		};
+
+		ws.onerror = (e: any) => console.error('[WS] Error:', e.message);
+		ws.onclose = () => console.log('[WS] Closed');
+
+		wsRef.current = ws;
+
+		return () => ws.close();
+	}, [currentConv]);
+
+	const startRecording = async () => {
+		try {
+			await Audio.requestPermissionsAsync();
+			await Audio.setAudioModeAsync({
+				allowsRecordingIOS: true,
+				playsInSilentModeIOS: true
+			});
+
+			const { recording } = await Audio.Recording.createAsync(
+				Audio.RecordingOptionsPresets.HighQuality
+			);
+
+			recordingRef.current = recording;
+			await recording.startAsync();
+			console.log('[Audio] Recording started.');
+		} catch (err) {
+			console.error('Failed to start recording', err);
+		}
+	};
+
+	const stopRecording = async () => {
+		try {
+			if (!recordingRef.current) return;
+
+			await recordingRef.current.stopAndUnloadAsync();
+			const uri = recordingRef.current.getURI();
+			const fileBlob = await fetch(uri!).then((r) => r.blob());
+			const arrayBuffer = await fileBlob.arrayBuffer();
+
+			const ws = wsRef.current;
+			if (ws && ws.readyState === WebSocket.OPEN) {
+				ws.send(arrayBuffer);
+				ws.send('END_AUDIO');
+				console.log('[WS] Sent audio + END_AUDIO');
+			}
+
+			recordingRef.current = null;
+		} catch (err) {
+			console.error('Error stopping recording:', err);
+		}
+	};
+
+	useEffect(() => {
+		if (micPressed) startRecording();
+		else stopRecording();
+	}, [micPressed]);
 
 	useEffect(() => {
 		intervalRef.current = setInterval(() => {
 			setElapsedTime((prev) => prev + 1);
 		}, 1000);
-
-		return () => {
-			if (intervalRef.current) clearInterval(intervalRef.current);
-		};
+		return () => clearInterval(intervalRef.current!);
 	}, []);
 
 	const formatTime = (seconds: number) => {
@@ -62,11 +139,9 @@ const ConversationScreen = () => {
 					<ThemedText type="defaultSemiBold" style={styles.timerText}>
 						{formatTime(elapsedTime)}
 					</ThemedText>
-
 					<Pressable
-						style={styles.closeButton}
 						onPress={() => setModalVisible(true)}
-						hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+						style={styles.closeButton}
 					>
 						<IconSymbol name="xmark" size={28} color={accent} />
 					</Pressable>
@@ -74,21 +149,19 @@ const ConversationScreen = () => {
 
 				<FlatList
 					data={messages}
-					keyExtractor={(item) => item.id}
+					keyExtractor={(item, index) => item.id ?? index.toString()}
 					renderItem={({ item }) => (
 						<View
 							style={[
 								styles.messageBubble,
-								item.type === 'user'
+								item.source === 'USER'
 									? styles.userBubble
 									: styles.botBubble,
-								{
-									backgroundColor: surface
-								}
+								{ backgroundColor: surface }
 							]}
 						>
 							<ThemedText style={styles.messageText}>
-								{item.text}
+								{item.content}
 							</ThemedText>
 						</View>
 					)}
@@ -112,27 +185,9 @@ const ConversationScreen = () => {
 					>
 						<IconSymbol name="waveform" size={32} color={accent} />
 					</Pressable>
-
-					{micPressed && (
-						<View style={styles.energyVisual}>
-							<View style={styles.pulseBar} />
-							<View style={[styles.pulseBar, { height: 14 }]} />
-							<View style={[styles.pulseBar, { height: 22 }]} />
-							<View style={[styles.pulseBar, { height: 10 }]} />
-							<View style={[styles.pulseBar, { height: 18 }]} />
-							<View style={[styles.pulseBar, { height: 16 }]} />
-							<View style={[styles.pulseBar, { height: 20 }]} />
-						</View>
-					)}
 				</View>
 
-				{/* Exit Confirmation */}
-				<Modal
-					visible={modalVisible}
-					transparent
-					animationType="fade"
-					onRequestClose={() => setModalVisible(false)}
-				>
+				<Modal visible={modalVisible} transparent animationType="fade">
 					<View style={styles.modalBackdrop}>
 						<View
 							style={[
@@ -201,7 +256,6 @@ const styles = StyleSheet.create({
 	},
 	messagesList: {
 		flex: 1,
-		paddingHorizontal: 0,
 		marginTop: 12
 	},
 	messagesContent: {
@@ -238,18 +292,6 @@ const styles = StyleSheet.create({
 		padding: 16,
 		borderRadius: 100
 	},
-	energyVisual: {
-		flexDirection: 'row',
-		alignItems: 'flex-end',
-		gap: 6
-	},
-	pulseBar: {
-		width: 4,
-		height: 18,
-		backgroundColor: '#60A5FA',
-		borderRadius: 2
-	},
-
 	modalBackdrop: {
 		flex: 1,
 		backgroundColor: '#00000080',

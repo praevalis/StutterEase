@@ -7,28 +7,31 @@ import {
 	Modal,
 	ScrollView
 } from 'react-native';
-import { useState } from 'react';
+import axios from 'axios';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { useChat } from '@/context/ChatContext';
+import { useAuth } from '@/context/AuthContext';
+import { useScenario } from '@/context/ScenarioContext';
 
 import ThemedText from '@/components/ThemedText';
 import ThemedView from '@/components/ThemedView';
 import useThemeColor from '@/hooks/useThemeColor';
 import IconSymbol from '@/components/ui/IconSymbol';
-import { useRouter } from 'expo-router';
-
-const sampleConversations = [
-	{ id: '1', title: 'Job Interview', date: '2024-06-01' },
-	{ id: '2', title: 'Doctor Visit', date: '2024-06-12' },
-	{ id: '3', title: 'Ordering Coffee', date: '2024-06-14' }
-];
-
-const scenarios = ['Job Interview', 'Ordering at Cafe', 'Doctor Visit'];
 
 const CoachMainScreen = () => {
 	const router = useRouter();
+
+	const { user } = useAuth();
+	const { scenarios, setScenarios } = useScenario();
+	const { allConvs, setAllConvs, setCurrentConv, messages, setMessages } =
+		useChat();
+
 	const [search, setSearch] = useState('');
 	const [modalVisible, setModalVisible] = useState(false);
-	const [selectedScenario, setSelectedScenario] = useState(scenarios[0]);
+	const [selectedScenario, setSelectedScenario] = useState<string>('');
 	const [dropdownOpen, setDropdownOpen] = useState(false);
 
 	const surface = useThemeColor({}, 'surface');
@@ -37,9 +40,53 @@ const CoachMainScreen = () => {
 	const placeholder = useThemeColor({}, 'secondaryText');
 	const background = useThemeColor({}, 'background');
 
-	const filtered = sampleConversations.filter((convo) =>
-		convo.title.toLowerCase().includes(search.toLowerCase())
+	useEffect(() => {
+		const fetchInitialData = async () => {
+			const response = await axios.get(
+				'http://192.168.0.100:8000/coach/scenario'
+			);
+			setScenarios(response.data.data);
+
+			if (user) {
+				const convResponse = await axios.get(
+					`http://192.168.0.100:8000/coach/conversation/user/${user.id}`
+				);
+
+				setAllConvs(convResponse.data.data);
+			}
+
+			if (!selectedScenario && scenarios.length > 0) {
+				setSelectedScenario(scenarios[0].title);
+			}
+		};
+
+		fetchInitialData();
+	}, []);
+
+	const filtered = allConvs.filter((convo) =>
+		convo.scenario_id?.toLowerCase().includes(search.toLowerCase())
 	);
+
+	const handleStartConversation = async () => {
+		const selected = scenarios.find((s) => s.title === selectedScenario);
+		if (!selected) return;
+
+		const response = await axios.post(
+			'http://192.168.0.100:8000/coach/conversation',
+			{
+				user_id: user?.id,
+				scenario_id: selected.id
+			}
+		);
+
+		setAllConvs((prev) => [...prev, response.data.data]);
+		setCurrentConv(response.data.data);
+		setMessages([]);
+
+		setModalVisible(false);
+		setDropdownOpen(false);
+		router.push('/coach/conversation');
+	};
 
 	return (
 		<SafeAreaView style={{ flex: 1 }}>
@@ -82,7 +129,6 @@ const CoachMainScreen = () => {
 								{ backgroundColor: surface }
 							]}
 						>
-							{/* Dropdown section */}
 							<View style={styles.dropdownWrapper}>
 								<Pressable
 									style={[
@@ -93,7 +139,9 @@ const CoachMainScreen = () => {
 										setDropdownOpen(!dropdownOpen)
 									}
 								>
-									<ThemedText>{selectedScenario}</ThemedText>
+									<ThemedText>
+										{selectedScenario || 'Select Scenario'}
+									</ThemedText>
 									<IconSymbol
 										name={
 											dropdownOpen
@@ -122,16 +170,18 @@ const CoachMainScreen = () => {
 										>
 											{scenarios.map((s) => (
 												<Pressable
-													key={s}
-													style={[
-														styles.dropdownItem
-													]}
+													key={s.id}
+													style={styles.dropdownItem}
 													onPress={() => {
-														setSelectedScenario(s);
+														setSelectedScenario(
+															s.title
+														);
 														setDropdownOpen(false);
 													}}
 												>
-													<ThemedText>{s}</ThemedText>
+													<ThemedText>
+														{s.title}
+													</ThemedText>
 												</Pressable>
 											))}
 										</ScrollView>
@@ -144,11 +194,7 @@ const CoachMainScreen = () => {
 									styles.startButton,
 									{ backgroundColor: accent }
 								]}
-								onPress={() => {
-									setModalVisible(false);
-									setDropdownOpen(false);
-									router.push('/coach/conversation');
-								}}
+								onPress={handleStartConversation}
 							>
 								<ThemedText
 									type="defaultSemiBold"
@@ -164,7 +210,7 @@ const CoachMainScreen = () => {
 
 				<FlatList
 					data={filtered}
-					keyExtractor={(item) => item.id}
+					keyExtractor={(item) => item.id || ''}
 					contentContainerStyle={{
 						paddingHorizontal: 24,
 						paddingTop: 24
@@ -172,36 +218,49 @@ const CoachMainScreen = () => {
 					ItemSeparatorComponent={() => (
 						<View style={{ height: 16 }} />
 					)}
-					renderItem={({ item }) => (
-						<Pressable
-							style={[
-								styles.card,
-								{
-									backgroundColor: surface,
-									borderColor: border
-								}
-							]}
-							onPress={() => router.push('/coach/conversation')}
-						>
-							<View>
-								<ThemedText type="defaultSemiBold">
-									{item.title}
-								</ThemedText>
-								<ThemedText
-									type="default"
-									colorName="secondaryText"
-									style={{ marginTop: 4 }}
-								>
-									{item.date}
-								</ThemedText>
-							</View>
-							<IconSymbol
-								name="chevron.right"
-								size={24}
-								color={accent}
-							/>
-						</Pressable>
-					)}
+					renderItem={({ item }) => {
+						const scenario = scenarios.find(
+							(s) => s.id === item.scenario_id
+						);
+						return (
+							<Pressable
+								style={[
+									styles.card,
+									{
+										backgroundColor: surface,
+										borderColor: border
+									}
+								]}
+								onPress={() => {
+									setCurrentConv(item);
+									setMessages([]);
+									router.push('/coach/conversation');
+								}}
+							>
+								<View>
+									<ThemedText type="defaultSemiBold">
+										{scenario?.title || 'Untitled'}
+									</ThemedText>
+									<ThemedText
+										type="default"
+										colorName="secondaryText"
+										style={{ marginTop: 4 }}
+									>
+										{item.created_at
+											? new Date(
+													item.created_at
+											  ).toLocaleDateString()
+											: 'Unknown date'}
+									</ThemedText>
+								</View>
+								<IconSymbol
+									name="chevron.right"
+									size={24}
+									color={accent}
+								/>
+							</Pressable>
+						);
+					}}
 				/>
 			</ThemedView>
 		</SafeAreaView>
@@ -287,7 +346,6 @@ const styles = StyleSheet.create({
 	},
 	dropdownScroll: {
 		maxHeight: 160,
-		borderWidth: 1,
 		borderRadius: 12,
 		paddingVertical: 4,
 		paddingHorizontal: 12
