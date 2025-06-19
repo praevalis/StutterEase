@@ -1,5 +1,6 @@
 import { View, StyleSheet, FlatList, Pressable, Modal } from 'react-native';
 import { useEffect, useRef, useState } from 'react';
+import * as Speech from 'expo-speech';
 import { Audio } from 'expo-av';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from 'expo-router';
@@ -57,6 +58,12 @@ const ConversationScreen = () => {
 				content: event.data
 			};
 			setMessages((prev) => [...prev, botMessage]);
+
+			Speech.speak(botMessage.content, {
+				language: 'en-US',
+				rate: 1.0,
+				pitch: 1.0
+			});
 		};
 
 		ws.onerror = (e: any) => console.error('[WS] Error:', e.message);

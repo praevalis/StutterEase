@@ -43,7 +43,8 @@
     "react-native-web": "~0.20.0",
     "react-native-websocket": "^1.0.2",
     "react-native-webview": "13.13.5",
-    "@react-native-community/datetimepicker": "8.3.0"
+    "@react-native-community/datetimepicker": "8.3.0",
+    "expo-speech": "~13.1.7"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
