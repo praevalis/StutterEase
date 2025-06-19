@@ -3,9 +3,10 @@ from sqlalchemy import pool
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config
 
-from src.user.models import User 
 from src.core.database import Base
 from src.core.config import settings
+from src.user.models import User, GenderEnum
+from src.coach.models import Conversation, Message, MessageSource, Scenario
 
 # Alembic Config object
 config = context.config

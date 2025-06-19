@@ -1,4 +1,5 @@
 from uuid import UUID
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.chat_history import BaseChatMessageHistory
@@ -16,6 +17,21 @@ from src.coach.schemas import (
     MessageDto
 )
 
+async def get_all_conversations_for_user(user_id: UUID, session: Session) -> list[ConversationDto]:
+    """
+    Fetches all conversations for an user.
+
+    Args:
+        user_id: Id of the user.
+        session: Database session.
+
+    Returns:
+        list[Conversation]: List of conversations.
+    """
+    query = select(Conversation).where(Conversation.user_id == user_id)
+    conversations = session.execute(query).scalars().all()
+    return [ConversationDto.model_validate(conv) for conv in conversations]
+
 async def create_conversation(
     create_dto: ConversationCreateDto,
     session: Session
@@ -30,12 +46,29 @@ async def create_conversation(
     Returns:
         ConversationDto: Created conversation.
     """
-    conversation = Conversation(**create_dto)
+    conversation = Conversation(
+        user_id=create_dto.user_id,
+        scenario_id=create_dto.scenario_id
+    )
     session.add(conversation)
     session.commit()
     session.refresh(conversation)
 
     return ConversationDto.model_validate(conversation)
+
+async def get_all_scenarios(session: Session) -> list[ScenarioDto]:
+    """
+    Fetches all scenarios.
+
+    Args:
+        session: Database session.
+
+    Returns:
+        list[ScenarioDto]: List of scenarios.
+    """
+    query = select(Scenario)
+    scenarios = session.execute(query).scalars().all()
+    return [ScenarioDto.model_validate(s) for s in scenarios]
 
 async def create_scenario(
     create_dto: ScenarioCreateDto, 
@@ -51,7 +84,10 @@ async def create_scenario(
     Returns:
         ScenarioDto: Created scenario.    
     """
-    scenario = Scenario(**create_dto)
+    scenario = Scenario(
+        title=create_dto.title,
+        description=create_dto.description
+    )
 
     session.add(scenario)
     session.commit()
@@ -100,7 +136,11 @@ async def save_message(
     Returns:
         MessageDto: Created message.
     """
-    message = Message(**create_dto)
+    message = Message(
+        source=create_dto.source,
+        conversation_id=create_dto.conversation_id,
+        content=create_dto.content
+    )
     
     session.add(message)
     session.commit()

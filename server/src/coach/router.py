@@ -21,7 +21,9 @@ from src.coach.models import MessageSource
 from src.assistant.services import get_transcription
 from src.core.dependencies import get_db_session, get_groq_model, get_whisper_model
 from src.coach.services import (
+    get_all_conversations_for_user,
     create_conversation, 
+    get_all_scenarios,
     create_scenario, 
     update_scenario,
     generate_reply,
@@ -40,6 +42,35 @@ router = APIRouter(
     tags=[ApiTags.coach],
     prefix="/coach"
 )
+
+@router.get("/conversation/user/{user_id}", status_code=status.HTTP_200_OK, response_model=ConversationResponse)
+async def fetch_all_conversations_for_user(
+    user_id: UUID,
+    session: Annotated[Session, Depends(get_db_session)]
+) -> ConversationResponse: 
+    """
+    Fetches all conversations for a user.
+
+    Args:
+        user_id: Id of the user.
+        session: Database session.
+
+    Returns:
+        ConversationResponse: Message and fetched conversations.
+    """
+    try:
+        conversations = await get_all_conversations_for_user(user_id, session)
+        return ConversationResponse(
+            message="Conversation created successfully.",
+            data=conversations
+        )
+    
+    except Exception as e:
+        logger.error(f"Error while fetching conversations for user {user_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error."
+        )
 
 @router.post("/conversation", status_code=status.HTTP_201_CREATED, response_model=ConversationResponse)
 async def create_conversation_endpoint(
@@ -64,6 +95,31 @@ async def create_conversation_endpoint(
 
     except Exception as e:
         logger.error(f"Error while creating conversation: {e}") 
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error."
+        )
+
+@router.get("/scenario", status_code=status.HTTP_200_OK, response_model=ScenarioResponse)
+async def fetch_all_scenarios(session: Annotated[Session, Depends(get_db_session)]) -> ScenarioResponse:
+    """
+    Endpoint to fetch all scenarios.
+
+    Args:   
+        session: Database session.
+
+    Returns:
+        ScenarioResponse: Message and fetched scenarios.
+    """
+    try:
+        scenarios =  await get_all_scenarios(session)
+        return ScenarioResponse(
+            message="Scenarios fetched successfully.",
+            data=scenarios
+        )
+
+    except Exception as e:
+        logger.error(f"Error while fetching scenarios: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error."
