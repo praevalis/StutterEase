@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import React, { useEffect, useState } from 'react';
 import {
 	TextInput,
 	Pressable,
@@ -9,26 +10,29 @@ import {
 	View,
 	Platform
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import ThemedText from '@/components/ThemedText';
 import ThemedView from '@/components/ThemedView';
 import useThemeColor from '@/hooks/useThemeColor';
+import { useAuth } from '@/context/AuthContext';
 
 const genderOptions = ['Male', 'Female', 'Other', 'Prefer not to say'];
 
 const SplashScreen = () => {
-	const [authenticated, setAuthenticated] = useState(false);
+	const router = useRouter();
+	const { authenticated, setAuthenticated, user, setUser } = useAuth();
+
 	const [showLogin, setShowLogin] = useState(true);
 	const [showDatePicker, setShowDatePicker] = useState(false);
 	const [showGenderModal, setShowGenderModal] = useState(false);
 
 	const [loginData, setLoginData] = useState({ username: '', password: '' });
 	const [registerData, setRegisterData] = useState({
-		firstName: '',
-		lastName: '',
+		first_name: '',
+		last_name: '',
 		username: '',
 		email: '',
 		password: '',
@@ -36,7 +40,6 @@ const SplashScreen = () => {
 		gender: ''
 	});
 
-	const router = useRouter();
 	const accent = useThemeColor({}, 'primaryAccent');
 	const border = useThemeColor({}, 'border');
 	const background = useThemeColor({}, 'background');
@@ -45,6 +48,7 @@ const SplashScreen = () => {
 	useEffect(() => {
 		const checkAuth = async () => {
 			const token = await AsyncStorage.getItem('auth_token');
+
 			if (token) {
 				setAuthenticated(true);
 				router.replace('/');
@@ -54,10 +58,39 @@ const SplashScreen = () => {
 	}, []);
 
 	const handleLogin = async () => {
-		if (loginData.username && loginData.password) {
-			await AsyncStorage.setItem('auth_token', 'mock_token');
-			setAuthenticated(true);
-			router.replace('/');
+		try {
+			if (loginData.username && loginData.password) {
+				const loginFormData = new FormData();
+				loginFormData.append('username', loginData.username);
+				loginFormData.append('password', loginData.password);
+
+				const response = await axios.post(
+					'http://192.168.0.100:8000/auth/login',
+					loginFormData,
+					{
+						headers: {
+							'Content-Type': 'multipart/form-data'
+						}
+					}
+				);
+				await AsyncStorage.setItem(
+					'auth_token',
+					response.data.data.auth_token
+				);
+				await AsyncStorage.setItem(
+					'refresh_token',
+					response.data.data.refresh_token
+				);
+
+				setAuthenticated(true);
+				setUser(response.data.data.user);
+				router.replace('/');
+			}
+		} catch (error: any) {
+			console.error(
+				'Login failed:',
+				error?.response?.data || error.message
+			);
 		}
 	};
 
@@ -65,11 +98,43 @@ const SplashScreen = () => {
 		if (
 			registerData.username &&
 			registerData.password &&
-			registerData.email
+			registerData.email &&
+			registerData.first_name
 		) {
-			await AsyncStorage.setItem('auth_token', 'mock_token');
-			setAuthenticated(true);
-			router.replace('/');
+			try {
+				const response = await axios.post(
+					'http://192.168.0.100:8000/auth/register',
+					{
+						...registerData,
+						gender: registerData.gender.toLowerCase() || null,
+						dob: registerData.dob || null
+					}
+				);
+				console.log('Response received.', response);
+
+				await AsyncStorage.setItem(
+					'auth_token',
+					response.data.data.auth_token
+				);
+				console.log('Auth token set.');
+
+				await AsyncStorage.setItem(
+					'refresh_token',
+					response.data.data.refresh_token
+				);
+				console.log('Refresh token set.');
+
+				setAuthenticated(true);
+				setUser(response.data.data.user);
+				console.log('User set.');
+
+				router.replace('/');
+			} catch (error: any) {
+				console.error(
+					'Registration failed:',
+					error?.response?.data || error.message
+				);
+			}
 		}
 	};
 
@@ -160,22 +225,22 @@ const SplashScreen = () => {
 							</Pressable>
 						</ThemedView>
 					) : (
-						<ThemedView style={[styles.form]}>
+						<ThemedView style={styles.form}>
 							<ThemedText
 								type="title"
 								colorName="primaryAccent"
 								style={styles.title}
 							>
-								SignUp
+								Register
 							</ThemedText>
 
 							<ThemedText>First Name</ThemedText>
 							<TextInput
-								value={registerData.firstName}
+								value={registerData.first_name}
 								onChangeText={(text) =>
 									setRegisterData({
 										...registerData,
-										firstName: text
+										first_name: text
 									})
 								}
 								style={[
@@ -186,11 +251,11 @@ const SplashScreen = () => {
 
 							<ThemedText>Last Name (Optional)</ThemedText>
 							<TextInput
-								value={registerData.lastName}
+								value={registerData.last_name}
 								onChangeText={(text) =>
 									setRegisterData({
 										...registerData,
-										lastName: text
+										last_name: text
 									})
 								}
 								style={[

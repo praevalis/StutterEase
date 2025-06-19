@@ -14,33 +14,12 @@ import {
 	Inter_700Bold
 } from '@expo-google-fonts/inter';
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useState } from 'react';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
 import SplashScreen from '@/app/index';
 
-export default function RootLayout() {
+function AppLayout() {
 	const colorScheme = useColorScheme();
-
-	const [fontsLoaded] = useFonts({
-		Inter_400Regular,
-		Inter_600SemiBold,
-		Inter_700Bold
-	});
-
-	const [authenticated, setAuthenticated] = useState(false);
-	const [authChecked, setAuthChecked] = useState(false);
-
-	useEffect(() => {
-		const checkAuth = async () => {
-			const token = await AsyncStorage.getItem('auth_token');
-			setAuthenticated(!!token);
-			setAuthChecked(true);
-		};
-
-		checkAuth();
-	}, []);
-
-	if (!fontsLoaded || !authChecked) return null;
+	const { authenticated } = useAuth();
 
 	return (
 		<ThemeProvider
@@ -61,5 +40,21 @@ export default function RootLayout() {
 				<SplashScreen />
 			)}
 		</ThemeProvider>
+	);
+}
+
+export default function RootLayout() {
+	const [fontsLoaded] = useFonts({
+		Inter_400Regular,
+		Inter_600SemiBold,
+		Inter_700Bold
+	});
+
+	if (!fontsLoaded) return null;
+
+	return (
+		<AuthProvider>
+			<AppLayout />
+		</AuthProvider>
 	);
 }
