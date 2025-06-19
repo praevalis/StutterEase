@@ -47,7 +47,7 @@ const SplashScreen = () => {
 
 	useEffect(() => {
 		const checkAuth = async () => {
-			const token = await AsyncStorage.getItem('auth_token');
+			const token = await AsyncStorage.getItem('access_token');
 
 			if (token) {
 				setAuthenticated(true);
@@ -74,8 +74,8 @@ const SplashScreen = () => {
 					}
 				);
 				await AsyncStorage.setItem(
-					'auth_token',
-					response.data.data.auth_token
+					'access_token',
+					response.data.data.access_token
 				);
 				await AsyncStorage.setItem(
 					'refresh_token',
@@ -84,7 +84,13 @@ const SplashScreen = () => {
 
 				setAuthenticated(true);
 				setUser(response.data.data.user);
-				router.replace('/');
+                
+                // navigating to the next screen after a
+                // short interval so that the authenticated state
+                // is set properly  
+				setTimeout(() => {
+					router.replace('/(tabs)');
+				}, 100);
 			}
 		} catch (error: any) {
 			console.error(
@@ -113,8 +119,8 @@ const SplashScreen = () => {
 				console.log('Response received.', response);
 
 				await AsyncStorage.setItem(
-					'auth_token',
-					response.data.data.auth_token
+					'access_token',
+					response.data.data.access_token
 				);
 				console.log('Auth token set.');
 
@@ -128,7 +134,7 @@ const SplashScreen = () => {
 				setUser(response.data.data.user);
 				console.log('User set.');
 
-				router.replace('/');
+				router.replace('/(tabs)');
 			} catch (error: any) {
 				console.error(
 					'Registration failed:',

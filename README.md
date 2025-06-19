@@ -74,7 +74,7 @@ POSTGRES_URI=db_url
 ALGORITHM=algorithm
 REFRESH_TOKEN_EXPIRES_DAYS=refresh_token_expiration
 ACCESS_TOKEN_EXPIRES_MINUTES=access_token_expiration
-ALLOWED_ORIGINS=["http://localhost:5173"]
+ALLOWED_ORIGINS=["http://localhost:5173"] 
 SECRET_KEY=secret_key
 ```
 
